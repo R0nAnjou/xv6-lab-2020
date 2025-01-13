@@ -98,7 +98,7 @@ userret:
 
         # put the saved user a0 in sscratch, so we
         # can swap it with our a0 (TRAPFRAME) in the last step.
-        ld t0, 112(a0)
+        ld t0, 112(a0)//把之前用户态保存的a0取出来
         csrw sscratch, t0
 
         # restore all but a0 from TRAPFRAME
@@ -138,4 +138,4 @@ userret:
         
         # return to user mode and user pc.
         # usertrapret() set up sstatus and sepc.
-        sret
+        sret//切换回user mode,SEPC寄存器的数值会被拷贝到PC寄存器,重新打开中断

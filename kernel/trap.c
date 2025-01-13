@@ -43,12 +43,12 @@ usertrap(void)
 
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
-  w_stvec((uint64)kernelvec);
+  w_stvec((uint64)kernelvec); //内核态中断处理程序的入口
 
   struct proc *p = myproc();
   
   // save user program counter.
-  p->trapframe->epc = r_sepc();
+  p->trapframe->epc = r_sepc();//确保在其他类型的陷入中，epc寄存器保存PC
   
   if(r_scause() == 8){
     // system call
@@ -62,7 +62,7 @@ usertrap(void)
 
     // an interrupt will change sstatus &c registers,
     // so don't enable until done with those registers.
-    intr_on();
+    intr_on();//因为有的系统调用会改变sstatus寄存器，所以在调用系统调用之前先打开中断
 
     syscall();
   } else if((which_dev = devintr()) != 0){
@@ -94,16 +94,16 @@ usertrapret(void)
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
-  intr_off();
+  intr_off();//取消中断，防止在切换到用户态时发生中断被打扰
 
   // send syscalls, interrupts, and exceptions to trampoline.S
-  w_stvec(TRAMPOLINE + (uservec - trampoline));
+  w_stvec(TRAMPOLINE + (uservec - trampoline));  //用户态中断处理程序的入口
 
   // set up trapframe values that uservec will need when
   // the process next re-enters the kernel.
   p->trapframe->kernel_satp = r_satp();         // kernel page table
   p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
-  p->trapframe->kernel_trap = (uint64)usertrap;
+  p->trapframe->kernel_trap = (uint64)usertrap; //保存usertrap指针
   p->trapframe->kernel_hartid = r_tp();         // hartid for cpuid()
 
   // set up the registers that trampoline.S's sret will use
@@ -111,21 +111,21 @@ usertrapret(void)
   
   // set S Previous Privilege mode to User.
   unsigned long x = r_sstatus();
-  x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
-  x |= SSTATUS_SPIE; // enable interrupts in user mode
+  x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode设置返回状态为用户态
+  x |= SSTATUS_SPIE; // enable interrupts in user mode启用用户模式中断
   w_sstatus(x);
 
   // set S Exception Program Counter to the saved user pc.
-  w_sepc(p->trapframe->epc);
+  w_sepc(p->trapframe->epc);//在spec寄存器设置成之前保存的用户程序计数器的值
 
   // tell trampoline.S the user page table to switch to.
-  uint64 satp = MAKE_SATP(p->pagetable);
+  uint64 satp = MAKE_SATP(p->pagetable);//用户态页表指针
 
   // jump to trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
-  uint64 fn = TRAMPOLINE + (userret - trampoline);
-  ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
+  uint64 fn = TRAMPOLINE + (userret - trampoline);//跳到userret切换到用户态
+  ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);//把两个参数保存到a0和a1寄存器中
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,
