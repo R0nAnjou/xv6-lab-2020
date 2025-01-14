@@ -50,18 +50,6 @@ usertrap(void)
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
-  if (which_dev == 2) {
-      if (p->kama_alarm_interval != 0 && --p->kama_alarm_ticks <= 0 && p->kama_alarm_goingoff == 0) {
-      	  // 是否设置了时钟 && 时钟倒计时是否结束 && 没有其他时钟正在运行
-          // 如果一个时钟到期的时候已经有一个时钟处理函数正在运行，
-          // 则会推迟到原处理函数运行完成后的下一个 tick 才触发这次时钟
-          p->kama_alarm_ticks = p->kama_alarm_interval;      // 重置时钟倒计时
-          *p->kama_alarm_trapframe = *p->trapframe;          // 保存当前进程陷阱帧
-          p->trapframe->epc = (uint64)p->kama_alarm_handler; // 跳转到时钟回调函数
-          p->kama_alarm_goingoff = 1;                        // 标记当前已有时钟正在运行
-      }
-    yield();
-  }
   
   if(r_scause() == 8){
     // system call
@@ -91,7 +79,19 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
+  {
+    if (p->kama_alarm_interval != 0 && --p->kama_alarm_ticks <= 0 && p->kama_alarm_goingoff == 0) {
+      // 是否设置了时钟 && 时钟倒计时是否结束 && 没有其他时钟正在运行
+      // 如果一个时钟到期的时候已经有一个时钟处理函数正在运行，
+      // 则会推迟到原处理函数运行完成后的下一个 tick 才触发这次时钟
+      p->kama_alarm_ticks = p->kama_alarm_interval;      // 重置时钟倒计时
+      *p->kama_alarm_trapframe = *p->trapframe;          // 保存当前进程陷阱帧
+      p->trapframe->epc = (uint64)p->kama_alarm_handler; // 跳转到时钟回调函数
+      p->kama_alarm_goingoff = 1;                        // 标记当前已有时钟正在运行
+    }
     yield();
+  }
+ 
 
   usertrapret();
 }
